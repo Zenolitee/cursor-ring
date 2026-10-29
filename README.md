@@ -30,7 +30,23 @@ To build it yourself, you need [Rust](https://rustup.rs).
 cargo build --release
 ```
 
-Then run `target\release\cursor-ring.exe`. The tray icon has **Customize cursors...**, **Pause**, **Start with Windows** and **Quit**. While it's running, the normal arrow becomes the glowing dot. Pausing or quitting the app brings back your own scheme.
+Then run `target\release\cursor-ring.exe`. The tray icon has **Ring settings...**, **Customize cursors...**, **Pause**, **Start with Windows** and **Quit**. While it's running, the normal arrow becomes the glowing dot. Pausing or quitting the app brings back your own scheme.
+
+### Ring settings
+
+**Ring settings...** in the tray opens `%APPDATA%\Cursor Ring\settings.ini` in Notepad. Change a value and save, and the ring updates straight away. You don't need to restart.
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `size`, `link_size` | 30, 42 | Ring width in px, normally and over links |
+| `color`, `link_color` | #f0dcc0, #f0a45a | Ring colour, normally and over links |
+| `opacity`, `link_opacity` | 0.75, 1 | 0 = invisible, 1 = solid |
+| `thickness` | 1 | Line thickness in px |
+| `follow` | 0.38 | Trail delay: 0.02 = long lazy trail, 1 = no delay |
+| `stretch` | 0.5 | How much the ring stretches when moving fast (0 = never) |
+| `dot` | true | Swap the arrow for the glowing dot. Set to false to keep your own pointer |
+
+If a value is invalid, that setting falls back to its default. Delete the file to reset everything.
 
 ## Files
 

@@ -2,12 +2,85 @@
 use std::{mem::zeroed, ptr::null_mut};
 use windows_sys::Win32::{Graphics::Gdi::*, UI::WindowsAndMessaging::*};
 
-// colours from the site: warm off-white ring, accent gold over links (RGB)
-const RING: (f32, f32, f32, f32) = (240.0, 220.0, 192.0, 0.75);
-const LINK: (f32, f32, f32, f32) = (240.0, 164.0, 90.0, 1.0);
-const DIAMETER: f32 = 30.0;           // logical px (scaled by DPI)
-const LINK_DIAMETER: f32 = 42.0;
-const FOLLOW: f32 = 0.38;             // fraction of the gap closed per 60 Hz frame (snappier than the site's 0.18)
+// The user's settings file. Written out as-is on first run, so its comments are the guide; Default must match it.
+pub const DEFAULT_INI: &str = "; Cursor Ring settings. Save this file and the ring updates straight away.
+; Delete a line (or the whole file) to get its default back.
+
+; Ring width in px, normally and over links (6 to 200).
+size = 30
+link_size = 42
+
+; Colours as #rrggbb, opacity from 0 (invisible) to 1 (solid).
+color = #f0dcc0
+opacity = 0.75
+link_color = #f0a45a
+link_opacity = 1
+
+; Line thickness in px (0.5 to 10).
+thickness = 1
+
+; How quickly the ring catches up with the pointer: 0.02 = long lazy trail, 1 = no delay.
+follow = 0.38
+
+; How much the ring stretches when you move fast: 0 = never, 0.5 = default, 2 = a lot.
+stretch = 0.5
+
+; Swap the normal arrow for the glowing dot while the app runs (true / false).
+; Set to false to keep your own pointer, e.g. a scheme made with Customize cursors.
+dot = true
+";
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Config {
+    pub size: f32,                    // logical px (scaled by DPI)
+    pub link_size: f32,
+    pub color: [f32; 3],              // RGB 0..255
+    pub opacity: f32,
+    pub link_color: [f32; 3],
+    pub link_opacity: f32,
+    pub thickness: f32,
+    pub follow: f32,                  // fraction of the gap closed per 60 Hz frame
+    pub stretch: f32,                 // extra length at full speed
+    pub dot: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self { size: 30.0, link_size: 42.0, color: [240.0, 220.0, 192.0], opacity: 0.75, link_color: [240.0, 164.0, 90.0],
+               link_opacity: 1.0, thickness: 1.0, follow: 0.38, stretch: 0.5, dot: true }
+    }
+}
+
+impl Config {
+    // `key = value` lines; comments, unknown keys and bad values are skipped (that setting keeps its default).
+    pub fn parse(text: &str) -> Self {
+        let mut c = Self::default();
+        for line in text.lines().map(str::trim).filter(|l| !l.starts_with([';', '#', '['])) {
+            let Some((k, v)) = line.split_once('=') else { continue };
+            let (k, v) = (k.trim().to_ascii_lowercase(), v.trim());
+            let num = |lo: f32, hi: f32| v.parse::<f32>().ok().filter(|n| n.is_finite()).map(|n| n.clamp(lo, hi));
+            let hex = || {
+                let h = v.trim_start_matches('#');
+                let n = u32::from_str_radix(h, 16).ok().filter(|_| h.len() == 6)?;
+                Some([(n >> 16) as f32, (n >> 8 & 255) as f32, (n & 255) as f32])
+            };
+            match k.as_str() {
+                "size" => if let Some(n) = num(6.0, 200.0) { c.size = n },
+                "link_size" => if let Some(n) = num(6.0, 200.0) { c.link_size = n },
+                "color" => if let Some(n) = hex() { c.color = n },
+                "opacity" => if let Some(n) = num(0.0, 1.0) { c.opacity = n },
+                "link_color" => if let Some(n) = hex() { c.link_color = n },
+                "link_opacity" => if let Some(n) = num(0.0, 1.0) { c.link_opacity = n },
+                "thickness" => if let Some(n) = num(0.5, 10.0) { c.thickness = n },
+                "follow" => if let Some(n) = num(0.02, 1.0) { c.follow = n },
+                "stretch" => if let Some(n) = num(0.0, 2.0) { c.stretch = n },
+                "dot" => if let Ok(b) = v.to_ascii_lowercase().parse() { c.dot = b },
+                _ => {}
+            }
+        }
+        c
+    }
+}
 
 pub struct State {
     pub x: f32,
@@ -17,27 +90,35 @@ pub struct State {
     angle: f32,
     stretch: f32,
     scale: f32,
+    pub cfg: Config,
 }
 
 impl State {
-    pub fn new(scale: f32) -> Self {
-        Self { x: -1e4, y: -1e4, size: DIAMETER, link: 0.0, angle: 0.0, stretch: 1.0, scale }
+    pub fn new(scale: f32, cfg: Config) -> Self {
+        Self { x: -1e4, y: -1e4, size: cfg.size, link: 0.0, angle: 0.0, stretch: 1.0, scale, cfg }
+    }
+
+    // Overlay size in physical px: the biggest ring at full stretch, plus its line and a margin. Even, so it centres.
+    pub fn box_size(&self) -> i32 {
+        let c = &self.cfg;
+        let px = (c.size.max(c.link_size) * (1.0 + c.stretch) + c.thickness * 1.6) * self.scale + 4.0;
+        (px / 2.0).ceil() as i32 * 2
     }
 
     // Moves the ring toward the pointer; returns false when nothing visibly changed (skip the redraw).
     pub fn step(&mut self, (tx, ty): (f32, f32), over_link: bool, dt: f32) -> bool {
         if self.x < -1e3 { self.x = tx; self.y = ty; }                 // first frame: start on the pointer
-        let k = 1.0 - (1.0 - FOLLOW).powf(dt * 60.0);                   // frame-rate independent easing
+        let k = 1.0 - (1.0 - self.cfg.follow).powf(dt * 60.0);                   // frame-rate independent easing
         let (vx, vy) = ((tx - self.x) * k, (ty - self.y) * k);
         self.x += vx;
         self.y += vy;
         let speed = (vx * vx + vy * vy).sqrt() / self.scale;
         if speed > 0.3 { self.angle = vy.atan2(vx); }
-        let stretch_to = 1.0 + (speed / 30.0).min(0.5);
+        let stretch_to = 1.0 + (speed / 30.0).min(self.cfg.stretch);
         self.stretch += (stretch_to - self.stretch) * 0.3;
         let link_to = if over_link { 1.0 } else { 0.0 };
         self.link += (link_to - self.link) * (1.0 - 0.8f32.powf(dt * 60.0));
-        let size_to = DIAMETER + (LINK_DIAMETER - DIAMETER) * self.link;
+        let size_to = self.cfg.size + (self.cfg.link_size - self.cfg.size) * self.link;
         self.size += (size_to - self.size) * 0.3;
         speed > 0.02 || (self.stretch - 1.0).abs() > 0.002 || (self.link - link_to).abs() > 0.002
     }
@@ -46,9 +127,11 @@ impl State {
     pub fn draw(&self, px: &mut [u32], boxsz: i32) {
         let r = self.size * 0.5 * self.scale;
         let (a, b) = (r * self.stretch, r / self.stretch);               // stretched along the motion
-        let line = (1.0 + 0.6 * self.link) * self.scale;                 // a touch bolder over links
+        let c = &self.cfg;
+        let line = c.thickness * (1.0 + 0.6 * self.link) * self.scale;   // a touch bolder over links
         let mix = |p: f32, q: f32| p + (q - p) * self.link;
-        let (cr, cg, cb, ca) = (mix(RING.0, LINK.0), mix(RING.1, LINK.1), mix(RING.2, LINK.2), mix(RING.3, LINK.3));
+        let (cr, cg, cb) = (mix(c.color[0], c.link_color[0]), mix(c.color[1], c.link_color[1]), mix(c.color[2], c.link_color[2]));
+        let ca = mix(c.opacity, c.link_opacity);
         let (sin, cos) = self.angle.sin_cos();
         let c = boxsz as f32 / 2.0;
         for j in 0..boxsz {
@@ -98,7 +181,7 @@ pub fn dot_cursor(scale: f32) -> HCURSOR {
 pub fn tray_icon() -> HICON {
     const S: i32 = 32;
     let mut px = vec![0u32; (S * S) as usize];
-    let state = State { x: 0.0, y: 0.0, size: 26.0, link: 0.0, angle: 0.0, stretch: 1.0, scale: 1.0 };
+    let state = State { x: 0.0, y: 0.0, size: 26.0, link: 0.0, angle: 0.0, stretch: 1.0, scale: 1.0, cfg: Config::default() };
     state.draw(&mut px, S);
     draw_dot(&mut px, S, 1.0);
     unsafe { make_icon(&px, S, true) }
@@ -128,7 +211,7 @@ mod tests {
 
     #[test]
     fn ring_catches_up_and_settles() {
-        let mut s = State::new(1.0);
+        let mut s = State::new(1.0, Config::default());
         s.step((0.0, 0.0), false, 1.0 / 60.0);
         for _ in 0..240 { s.step((100.0, 50.0), false, 1.0 / 60.0); }
         assert!((s.x - 100.0).abs() < 0.5 && (s.y - 50.0).abs() < 0.5);
@@ -137,7 +220,7 @@ mod tests {
 
     #[test]
     fn fast_motion_stretches_and_links_grow() {
-        let mut s = State::new(1.0);
+        let mut s = State::new(1.0, Config::default());
         s.step((0.0, 0.0), false, 1.0 / 60.0);
         for _ in 0..3 { s.step((400.0, 0.0), false, 1.0 / 60.0); }
         assert!(s.stretch > 1.2);
@@ -147,12 +230,25 @@ mod tests {
 
     #[test]
     fn draws_an_outline_not_a_disc() {
-        let s = State { x: 0.0, y: 0.0, size: 30.0, link: 0.0, angle: 0.0, stretch: 1.0, scale: 1.0 };
+        let s = State { x: 0.0, y: 0.0, size: 30.0, link: 0.0, angle: 0.0, stretch: 1.0, scale: 1.0, cfg: Config::default() };
         let mut px = vec![0u32; 64 * 64];
         s.draw(&mut px, 64);
         let alpha = |i: usize, j: usize| px[j * 64 + i] >> 24;
         assert_eq!(alpha(32, 32), 0, "centre stays clear");
         assert!(alpha(32 + 15, 32) > 60, "outline at the radius");
         assert_eq!(alpha(2, 2), 0, "corners clear");
+    }
+
+    #[test]
+    fn settings_file_parses() {
+        assert_eq!(Config::parse(DEFAULT_INI), Config::default(), "shipped file and defaults agree");
+        let c = Config::parse("size = 50
+color=#FF0000
+follow = banana
+opacity = 7
+dot = FALSE
+; size = 99");
+        assert_eq!((c.size, c.color, c.follow, c.opacity, c.dot), (50.0, [255.0, 0.0, 0.0], 0.38, 1.0, false));
+        assert!(State::new(1.0, c).box_size() >= 50 * 3 / 2);
     }
 }
