@@ -1,0 +1,343 @@
+<!doctype html>
+<!-- Cursor Ring scheme editor: tweak the look, preview all 17 cursors live, download an installable scheme (.zip).
+     Self-contained (no network); baked into cursor-ring.exe and opened from the tray via "Customize cursors...".
+     The renderer is a port of tools/make_scheme.py; defaults match it. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cursor Ring Editor</title>
+<style>
+  :root { --bg: #120e0c; --panel: #1c1613; --line: #3a2f28; --text: #f3e7d6; --muted: #a8998a; --gold: #f0a45a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, "Segoe UI", sans-serif; }
+  header { padding: 28px 24px 8px; max-width: 1200px; margin: auto; }
+  h1 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: .01em; }
+  h1 span { color: var(--gold); }
+  header p { margin: 4px 0 0; color: var(--muted); }
+  main { display: grid; grid-template-columns: 320px 1fr; gap: 24px; padding: 16px 24px 48px; max-width: 1200px; margin: auto; }
+  @media (max-width: 760px) { main { grid-template-columns: 1fr; padding: 16px; } header { padding: 20px 16px 4px; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  aside { align-self: start; position: sticky; top: 16px; }
+  @media (max-width: 760px) { aside { position: static; } }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+  label { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 10px; margin-bottom: 12px; font-size: 14px; }
+  label input[type=range], label input[type=text] { grid-column: 1 / -1; width: 100%; }
+  input[type=range] { accent-color: var(--gold); }
+  input[type=text] { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; font: inherit; }
+  input[type=color] { width: 44px; height: 28px; border: 1px solid var(--line); border-radius: 6px; background: none; padding: 1px; cursor: pointer; }
+  output { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; }
+  .buttons { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  button { font: inherit; border-radius: 8px; padding: 9px 14px; cursor: pointer; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+  button.primary { background: var(--gold); border-color: var(--gold); color: #1a0f05; font-weight: 600; flex: 1; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; }
+  .tile { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
+  .tile .pair { display: grid; grid-template-columns: 1fr 1fr; }
+  .tile canvas { width: 100%; aspect-ratio: 1; display: block; image-rendering: auto; }
+  .tile canvas.dark { background: #0d0a08; }
+  .tile canvas.light { background: #f7f7f7; }
+  .tile div.name { font-size: 12px; padding: 6px 8px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hint { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+  .guide { margin-top: 24px; }
+  .guide h3 { font-size: 16px; margin: 18px 0 6px; }
+  .guide ol, .guide ul { margin: 0; padding-left: 22px; }
+  .guide li { margin: 4px 0; }
+  code { background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Cursor <span>Ring</span> editor</h1>
+  <p>Tweak the look, hover a cursor to try it, then download an installable Windows pointer scheme.</p>
+</header>
+<main>
+  <aside class="panel">
+    <h2>Settings</h2>
+    <div id="controls"></div>
+    <div class="buttons">
+      <button class="primary" id="download">Download scheme</button>
+      <button id="reset">Reset</button>
+    </div>
+  </aside>
+  <section>
+    <div class="panel">
+      <h2>Preview</h2>
+      <p class="hint">Each cursor on a dark and a light background. Hover one to use it as your real pointer.</p>
+      <div class="grid" id="grid"></div>
+    </div>
+    <div class="panel guide">
+      <h2>Guide</h2>
+      <h3>Make your scheme</h3>
+      <ol>
+        <li>Change the settings on the left. The preview updates as you go, and your settings are saved in this browser.</li>
+        <li>Give it a <b>Scheme name</b> so you can tell your versions apart (for example <code>Cursor Ring Blue</code>).</li>
+        <li>Click <b>Download scheme</b>. You get a <code>.zip</code> named after your scheme.</li>
+      </ol>
+      <h3>Install it</h3>
+      <ol>
+        <li>Unzip the download (right-click &rarr; <b>Extract All</b>).</li>
+        <li>In the extracted folder, right-click <code>install.inf</code> &rarr; <b>Install</b> and accept the admin prompt. On Windows 11 it's under <b>Show more options</b>.</li>
+        <li>Open <b>Settings &rarr; Bluetooth &amp; devices &rarr; Mouse &rarr; Additional mouse settings</b>, then the <b>Pointers</b> tab.</li>
+        <li>Pick your scheme in the <b>Scheme</b> list and click <b>Apply</b>.</li>
+      </ol>
+      <h3>What each setting does</h3>
+      <ul>
+        <li><b>Main colour</b>: every cursor except Link Select. <b>Link colour</b>: the link (hand) cursor.</li>
+        <li><b>Glow</b>: the soft halo. Set strength to 0 for a flat look.</li>
+        <li><b>Outline</b>: the dark edge that keeps light cursors visible on white pages. Width 0 removes it.</li>
+        <li><b>Line thickness</b>: scales every stroke (arrows, I-beam, spinners). <b>Dot size</b> and <b>Link ring size</b> change the round shapes.</li>
+        <li><b>Spinner arc</b> and <b>frame time</b>: the length and speed of the Busy and Working animations (lower ms = faster).</li>
+      </ul>
+      <h3>Good to know</h3>
+      <ul>
+        <li>Each cursor is saved at 32, 48, 64, 96 and 128 px, so it stays sharp with the pointer size slider.</li>
+        <li>While the Cursor Ring app is running, it swaps the normal pointer for its own dot. Pause it from the tray to see your Normal Select cursor.</li>
+        <li>To update a scheme, install again with the same name: the files are replaced. Then re-select it in Pointers and click Apply.</li>
+        <li>To remove one, pick another scheme in Pointers, select yours and click <b>Delete</b>, then delete <code>C:\Windows\Cursors\&lt;scheme name&gt;</code>.</li>
+        <li><b>Reset</b> brings back the original look.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+<script>
+// ---------- settings ----------
+const DEFAULTS = { name: 'Cursor Ring', fill: '#fff1d6', accent: '#f0a45a', glow: '#ffd9a0', edge: '#18120c',
+  glowStrength: 0.45, glowRadius: 3.5, outline: 1.1, outlineOpacity: 0.85, thickness: 1, dot: 3, linkRing: 9, arc: 270, frameMs: 67 };
+const SPEC = [   // key, label, type, min, max, step
+  ['name', 'Scheme name', 'text'],
+  ['fill', 'Main colour', 'color'], ['accent', 'Link colour', 'color'], ['glow', 'Glow colour', 'color'], ['edge', 'Outline colour', 'color'],
+  ['glowStrength', 'Glow strength', 'range', 0, 1, 0.05], ['glowRadius', 'Glow size', 'range', 0.5, 8, 0.5],
+  ['outline', 'Outline width', 'range', 0, 3, 0.1], ['outlineOpacity', 'Outline opacity', 'range', 0, 1, 0.05],
+  ['thickness', 'Line thickness', 'range', 0.5, 2, 0.05], ['dot', 'Dot size', 'range', 1.5, 6, 0.25], ['linkRing', 'Link ring size', 'range', 5, 13, 0.5],
+  ['arc', 'Spinner arc (degrees)', 'range', 60, 330, 10], ['frameMs', 'Spinner frame time (ms)', 'range', 20, 200, 5],
+];
+let P = { ...DEFAULTS };
+try { Object.assign(P, JSON.parse(localStorage.getItem('cursor-ring-editor') || '{}')); } catch {}
+const save = () => { try { localStorage.setItem('cursor-ring-editor', JSON.stringify(P)); } catch {} };
+
+// ---------- shapes: signed distance in a 32-unit grid (negative inside) ----------
+const TAU = 2 * Math.PI, rad = d => d * Math.PI / 180;
+const circle = (cx, cy, r) => (x, y) => Math.hypot(x - cx, y - cy) - r;
+const ring = (cx, cy, r, w) => (x, y) => Math.abs(Math.hypot(x - cx, y - cy) - r) - w / 2;
+const segDist = (x, y, ax, ay, bx, by) => {
+  const px = x - ax, py = y - ay, vx = bx - ax, vy = by - ay;
+  const t = Math.max(0, Math.min(1, (px * vx + py * vy) / (vx * vx + vy * vy)));
+  return Math.hypot(px - vx * t, py - vy * t);
+};
+const seg = (ax, ay, bx, by, w) => (x, y) => segDist(x, y, ax, ay, bx, by) - w / 2;
+const arc = (cx, cy, r, w, start, sweep) => {   // degrees, y-down: positive sweep runs clockwise on screen
+  const a0 = rad(start), sw = rad(sweep), ends = [a0, a0 + sw].map(a => [cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+  return (x, y) => ((((Math.atan2(y - cy, x - cx) - a0) % TAU) + TAU) % TAU <= sw
+    ? Math.abs(Math.hypot(x - cx, y - cy) - r) - w / 2
+    : Math.min(...ends.map(([ex, ey]) => Math.hypot(x - ex, y - ey))) - w / 2);
+};
+const tri = (...pts) => (x, y) => {             // convex polygon, any winding
+  let edge = 1e9; const sides = new Set();
+  pts.forEach(([ax, ay], i) => {
+    const [bx, by] = pts[(i + 1) % pts.length];
+    edge = Math.min(edge, segDist(x, y, ax, ay, bx, by));
+    sides.add((bx - ax) * (y - ay) - (by - ay) * (x - ax) > 0);
+  });
+  return sides.size === 1 ? -edge : edge;
+};
+const union = (...fs) => (x, y) => Math.min(...fs.map(f => f(x, y)));
+const spinner = (n, make) => Array.from({ length: n }, (_, i) => make(360 * i / n));
+
+function roles(P) {
+  const t = P.thickness, D = circle(16, 16, P.dot);
+  const arrow2 = (deg, half = 10) => {          // double-headed arrow through the centre
+    const c = Math.cos(rad(deg)), s = Math.sin(rad(deg)), at = (u, v) => [16 + u * c - v * s, 16 + u * s + v * c];
+    const head = k => tri(at(k * (half + 3), 0), at(k * (half - 2.5), 4.5), at(k * (half - 2.5), -4.5));
+    return union(seg(...at(-half, 0), ...at(half, 0), 2 * t), head(1), head(-1));
+  };
+  // [file stem, Pointers-tab name, shape or frames, hotspot, link colour?]
+  return [
+    ['pointer', 'Normal Select', D, [16, 16]],
+    ['help', 'Help Select', union(circle(9, 9, P.dot), arc(22, 15, 3.5, 2 * t, 180, 270), seg(22, 18.5, 22, 20.5, 2 * t), circle(22, 25, 1.3 * t)), [9, 9]],
+    ['working', 'Working in Background', spinner(12, a => union(D, arc(16, 16, 9, 2 * t, a, 100))), [16, 16]],
+    ['busy', 'Busy', spinner(12, a => arc(16, 16, 8, 2.6 * t, a, P.arc)), [16, 16]],
+    ['precision', 'Precision Select', union(seg(16, 4, 16, 11, 1.6 * t), seg(16, 21, 16, 28, 1.6 * t), seg(4, 16, 11, 16, 1.6 * t), seg(21, 16, 28, 16, 1.6 * t), circle(16, 16, 1.4 * t)), [16, 16]],
+    ['text', 'Text Select', union(seg(16, 6, 16, 26, 1.8 * t), seg(12.5, 6, 19.5, 6, 1.8 * t), seg(12.5, 26, 19.5, 26, 1.8 * t)), [16, 16]],
+    ['handwriting', 'Handwriting', union(seg(10, 22, 24, 8, 3 * t), tri([6, 26], [8.5, 21.5], [10.5, 23.5])), [6, 26]],
+    ['unavailable', 'Unavailable', union(ring(16, 16, 8, 2.6 * t), seg(10.3, 10.3, 21.7, 21.7, 2.6 * t)), [16, 16]],
+    ['vert', 'Vertical Resize', arrow2(90), [16, 16]],
+    ['horz', 'Horizontal Resize', arrow2(0), [16, 16]],
+    ['dgn1', 'Diagonal Resize 1', arrow2(45, 8.5), [16, 16]],
+    ['dgn2', 'Diagonal Resize 2', arrow2(-45, 8.5), [16, 16]],
+    ['move', 'Move', union(arrow2(0), arrow2(90)), [16, 16]],
+    ['alternate', 'Alternate Select', union(seg(16, 10, 16, 28, 2 * t), tri([16, 3], [21, 11], [11, 11])), [16, 3]],
+    ['link', 'Link Select', union(circle(16, 16, P.dot), ring(16, 16, P.linkRing, 1.6 * t)), [16, 16], true],
+    ['pin', 'Location Select', union(ring(16, 10, 6, 2 * t), circle(16, 10, 2), seg(16, 16, 16, 28, 2 * t)), [16, 29]],
+    ['person', 'Person Select', union(circle(16, 10, 3.5), arc(16, 25, 7, 2.6 * t, 180, 180)), [16, 16]],
+  ];
+}
+
+// ---------- rendering ----------
+const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const clamp01 = v => Math.max(0, Math.min(1, v));
+
+function render(shape, link, S) {               // -> ImageData (straight alpha)
+  const k = S / 32, img = new ImageData(S, S), px = img.data;
+  const fill = rgb(link ? P.accent : P.fill), glow = rgb(P.glow), edge = rgb(P.edge);
+  for (let y = 0, i = 0; y < S; y++) for (let x = 0; x < S; x++, i += 4) {
+    const d = shape((x + 0.5) / k, (y + 0.5) / k);
+    const layers = [[glow, P.glowStrength * Math.exp(-((Math.max(d, 0) / P.glowRadius) ** 2))],
+                    [edge, P.outline > 0 ? P.outlineOpacity * clamp01(0.5 - (d - P.outline) * k) : 0],
+                    [fill, clamp01(0.5 - d * k)]];
+    let r = 0, g = 0, b = 0, a = 0;              // premultiplied "over", bottom to top
+    for (const [[cr, cg, cb], ca] of layers) { r = cr * ca + r * (1 - ca); g = cg * ca + g * (1 - ca); b = cb * ca + b * (1 - ca); a = ca + a * (1 - ca); }
+    if (a > 0) { px[i] = r / a; px[i + 1] = g / a; px[i + 2] = b / a; px[i + 3] = 255 * a; }
+  }
+  return img;
+}
+
+// ---------- preview ----------
+const grid = document.getElementById('grid');
+const PREVIEW = 64;
+let tiles = [], frame = 0, timer;
+
+function buildPreview() {
+  const R = roles(P);
+  if (!tiles.length) tiles = R.map(([, label]) => {
+    const el = document.createElement('div'); el.className = 'tile'; el.title = label;
+    el.innerHTML = `<div class="pair"><canvas class="dark" width="${PREVIEW}" height="${PREVIEW}"></canvas><canvas class="light" width="${PREVIEW}" height="${PREVIEW}"></canvas></div><div class="name">${label}</div>`;
+    grid.append(el);
+    return { el, canvases: [...el.querySelectorAll('canvas')], frames: [] };
+  });
+  R.forEach(([, , shape, hot, link], i) => {
+    const tile = tiles[i];
+    tile.frames = (Array.isArray(shape) ? shape : [shape]).map(f => render(f, link, PREVIEW));
+    // hover = real pointer: a 32 px PNG of the first frame
+    const c = document.createElement('canvas'); c.width = c.height = 32;
+    c.getContext('2d').putImageData(render(Array.isArray(shape) ? shape[0] : shape, link, 32), 0, 0);
+    tile.el.style.cursor = `url(${c.toDataURL()}) ${hot[0]} ${Math.min(hot[1], 31)}, auto`;
+  });
+  drawFrame();
+  clearInterval(timer);
+  timer = setInterval(() => { frame++; drawFrame(); }, P.frameMs);
+}
+
+function drawFrame() {
+  for (const t of tiles) {
+    if (t.frames.length === 1 && frame > 0) continue;   // static: drawn once
+    const img = t.frames[frame % t.frames.length];
+    for (const c of t.canvases) c.getContext('2d').putImageData(img, 0, 0);
+  }
+}
+
+// ---------- controls ----------
+const controls = document.getElementById('controls');
+let pending;
+function changed() { save(); clearTimeout(pending); pending = setTimeout(() => { frame = 0; buildPreview(); }, 40); }
+
+function buildControls() {
+  controls.innerHTML = '';
+  for (const [key, label, type, min, max, step] of SPEC) {
+    const l = document.createElement('label');
+    const input = Object.assign(document.createElement('input'), { type, value: P[key] });
+    if (type === 'range') Object.assign(input, { min, max, step });
+    const out = document.createElement('output');
+    l.append(label, type === 'color' ? input : out);
+    if (type !== 'color') l.append(input);
+    const show = () => { if (type === 'range') out.textContent = P[key]; };
+    show();
+    input.addEventListener('input', () => {
+      P[key] = type === 'range' ? +input.value : input.value;
+      show();
+      if (key !== 'name') changed(); else save();
+    });
+    controls.append(l);
+  }
+}
+
+document.getElementById('reset').onclick = () => { P = { ...DEFAULTS }; save(); buildControls(); frame = 0; buildPreview(); };
+
+// ---------- file formats ----------
+const SIZES = [32, 48, 64, 96, 128];
+const enc = s => new TextEncoder().encode(s);
+const cat = (...arrs) => { const out = new Uint8Array(arrs.reduce((s, a) => s + a.length, 0)); let o = 0; for (const a of arrs) { out.set(a, o); o += a.length; } return out; };
+const le = (...fields) => {                     // [value, byteCount] pairs, little-endian
+  const b = new Uint8Array(fields.reduce((s, [, n]) => s + n, 0)), v = new DataView(b.buffer); let o = 0;
+  for (const [x, n] of fields) { n === 1 ? v.setUint8(o, x) : n === 2 ? v.setUint16(o, x, true) : v.setUint32(o, x, true); o += n; }
+  return b;
+};
+
+async function pngOf(img) {
+  const c = new OffscreenCanvas(img.width, img.height);
+  c.getContext('2d').putImageData(img, 0, 0);
+  return new Uint8Array(await (await c.convertToBlob({ type: 'image/png' })).arrayBuffer());
+}
+
+async function cur(shape, hot, link) {          // ICONDIR (type 2 = cursor); "planes/bitcount" hold the hotspot
+  const imgs = [];
+  for (const S of SIZES) imgs.push([S, await pngOf(render(shape, link, S))]);
+  let off = 6 + 16 * imgs.length;
+  const entries = imgs.map(([S, data]) => {
+    const e = le([S, 1], [S, 1], [0, 1], [0, 1], [Math.min(S - 1, Math.round(hot[0] * S / 32)), 2], [Math.min(S - 1, Math.round(hot[1] * S / 32)), 2], [data.length, 4], [off, 4]);
+    off += data.length; return e;
+  });
+  return cat(le([0, 2], [2, 2], [imgs.length, 2]), ...entries, ...imgs.map(([, d]) => d));
+}
+
+const riff = (kind, data) => cat(enc(kind), le([data.length, 4]), data, new Uint8Array(data.length & 1));
+
+async function ani(frames, hot, link) {
+  const icons = [];
+  for (const f of frames) icons.push(riff('icon', await cur(f, hot, link)));
+  const jiffies = Math.max(1, Math.round(P.frameMs * 60 / 1000));   // 1/60 s units
+  const anih = le([36, 4], [frames.length, 4], [frames.length, 4], [0, 4], [0, 4], [0, 4], [0, 4], [jiffies, 4], [1, 4]);   // flags: AF_ICON
+  return riff('RIFF', cat(enc('ACON'), riff('anih', anih), riff('LIST', cat(enc('fram'), ...icons))));
+}
+
+function inf(name, keys, files) {
+  const paths = keys.map(k => `%10%\\%CUR_DIR%\\%${k}%`).join(',');
+  return [
+    `; Installs the "${name}" pointer scheme. Right-click -> Install, then choose it in Mouse settings -> Pointers.`,
+    '[Version]', 'signature="$CHICAGO$"', '',
+    '[DefaultInstall]', 'CopyFiles = Scheme.Cur', 'AddReg    = Scheme.Reg', '',
+    '[DestinationDirs]', 'Scheme.Cur = 10,"%CUR_DIR%"', '',
+    '[Scheme.Reg]', `HKCU,"Control Panel\\Cursors\\Schemes","%SCHEME_NAME%",,"${paths}"`, '',
+    '[Scheme.Cur]', ...files, '',
+    '[Strings]', `CUR_DIR     = "Cursors\\${name}"`, `SCHEME_NAME = "${name}"`,
+    ...keys.map((k, i) => `${k.padEnd(11)} = "${files[i]}"`), ''].join('\r\n');
+}
+
+const CRC = new Uint32Array(256).map((_, n) => { for (let k = 0; k < 8; k++) n = n & 1 ? 0xedb88320 ^ (n >>> 1) : n >>> 1; return n; });
+const crc32 = b => { let c = ~0; for (const x of b) c = CRC[(c ^ x) & 255] ^ (c >>> 8); return ~c >>> 0; };
+
+function zip(files) {                           // stored (no compression): PNGs are already compressed
+  const local = [], central = []; let off = 0;
+  for (const { name, data } of files) {
+    const n = enc(name), crc = crc32(data);
+    const common = [[20, 2], [0x0800, 2], [0, 2], [0, 2], [0x21, 2], [crc, 4], [data.length, 4], [data.length, 4], [n.length, 2], [0, 2]];
+    local.push(le([0x04034b50, 4], ...common), n, data);
+    central.push(le([0x02014b50, 4], [20, 2], ...common, [0, 2], [0, 2], [0, 2], [0, 4], [off, 4]), n);
+    off += 30 + n.length + data.length;
+  }
+  const cd = cat(...central);
+  return cat(...local, cd, le([0x06054b50, 4], [0, 2], [0, 2], [files.length, 2], [files.length, 2], [cd.length, 4], [off, 4], [0, 2]));
+}
+
+document.getElementById('download').onclick = async e => {
+  const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Building...';
+  try {
+    // INF strings and folder names: printable ASCII without quote, percent or path characters
+    const name = P.name.replace(/[^\x20-\x7e]|["%\\/:*?<>|]/g, '').trim() || DEFAULTS.name;
+    const R = roles(P), files = [];
+    for (const [stem, , shape, hot, link] of R) {
+      const animated = Array.isArray(shape);
+      files.push({ name: `${name}/${stem}.${animated ? 'ani' : 'cur'}`, data: animated ? await ani(shape, hot, link) : await cur(shape, hot, link) });
+    }
+    files.push({ name: `${name}/install.inf`, data: enc(inf(name, R.map(r => r[0]), files.map(f => f.name.split('/')[1]))) });
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([zip(files)], { type: 'application/zip' })), download: `${name}.zip` });
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  } finally { btn.disabled = false; btn.textContent = 'Download scheme'; }
+};
+
+buildControls();
+buildPreview();
+</script>
+</body>
+</html>

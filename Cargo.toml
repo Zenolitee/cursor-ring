@@ -1,0 +1,25 @@
+[package]
+name = "cursor-ring"
+version = "0.1.0"
+edition = "2021"
+description = "A ring that trails the Windows mouse cursor and stretches with its speed (from zenolitee.github.io/portfolio-zen)"
+
+[dependencies.windows-sys]
+version = "0.59"
+features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_Graphics_Dwm",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_Shell",
+  "Win32_UI_HiDpi",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Registry",
+  "Win32_System_Threading",
+  "Win32_Security",
+]
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
