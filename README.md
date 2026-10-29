@@ -7,20 +7,24 @@ It comes in two parts. You can use either one on its own:
 - **The ring app** (`cursor-ring.exe`): a thin ring that follows the mouse, stretches with speed and turns gold over links. It runs from the tray.
 - **The cursor scheme**: 17 matching Windows pointers (normal, link, text, busy, resize and the rest) that you install like any other scheme.
 
+**[Open the editor in your browser](https://zenolitee.github.io/cursor-ring/tools/editor.html)** · **[Download the app and scheme](https://github.com/Zenolitee/cursor-ring/releases/latest)**
+
 ## Install the cursor scheme
 
-1. Download or clone this repo.
-2. Right-click `assets/scheme/install.inf` and choose **Install** (on Windows 11 it's under **Show more options**). Accept the admin prompt.
+1. Download `Cursor-Ring-scheme.zip` from the [latest release](https://github.com/Zenolitee/cursor-ring/releases/latest) and unzip it.
+2. Right-click `install.inf` and choose **Install** (on Windows 11 it's under **Show more options**). Accept the admin prompt.
 3. Open **Settings → Bluetooth & devices → Mouse → Additional mouse settings**, then go to the **Pointers** tab.
 4. Choose **Cursor Ring** in the **Scheme** list and click **Apply**.
 
 ## Make your own version
 
-Open `tools/editor.html` in a browser, or click **Customize cursors...** in the ring app's tray menu. Change the colours, glow, outline, line thickness, dot and ring size, and spinner speed, and every cursor updates in a live preview. Hover a cursor to try it as your real pointer. **Download scheme** gives you a zip with the cursors and an `install.inf`. The editor page has a step-by-step guide.
+Open the [online editor](https://zenolitee.github.io/cursor-ring/tools/editor.html) (or `tools/editor.html` locally), or click **Customize cursors...** in the ring app's tray menu. Change the colours, glow, outline, line thickness, dot and ring size, and spinner speed, and every cursor updates in a live preview. Hover a cursor to try it as your real pointer. **Download scheme** gives you a zip with the cursors and an `install.inf`. The editor page has a step-by-step guide.
 
 ## Run the ring app
 
-You need [Rust](https://rustup.rs).
+Download `cursor-ring.exe` from the [latest release](https://github.com/Zenolitee/cursor-ring/releases/latest) and run it. Windows SmartScreen may warn about an unknown publisher, because the exe isn't code-signed: click **More info → Run anyway**.
+
+To build it yourself, you need [Rust](https://rustup.rs).
 
 ```bash
 cargo build --release
